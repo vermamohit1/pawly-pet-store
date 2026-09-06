@@ -37,17 +37,37 @@ function App() {
   const [menu, setMenu] = useState(false);
   const [wishlist, setWishlist] = useState([]);
   const [notice, setNotice] = useState("");
+  const [panel, setPanel] = useState(null);
+  const [category, setCategory] = useState("All");
+
+  const showNotice = (message) => {
+    setNotice(message);
+    window.clearTimeout(window.__pawlyNotice);
+    window.__pawlyNotice = window.setTimeout(() => setNotice(""), 2200);
+  };
+
+  const productMatchesCategory = (product) => {
+    if (category === "All") return true;
+    const text = `${product.name} ${product.brand}`.toLowerCase();
+    if (category === "Dog") return text.includes("dog") || text.includes("chuckit");
+    if (category === "Cat") return text.includes("cat");
+    if (category === "Treats") return text.includes("treat");
+    if (category === "Toys") return text.includes("toy") || text.includes("ball");
+    if (category === "Beds") return text.includes("bed");
+    return true;
+  };
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(p => `${p.name} ${p.brand}`.toLowerCase().includes(q));
-  }, [search]);
+    return products.filter(p => {
+      const matchesSearch = !q || `${p.name} ${p.brand}`.toLowerCase().includes(q);
+      return matchesSearch && productMatchesCategory(p);
+    });
+  }, [search, category]);
 
   const addToCart = (product) => {
     setCart(prev => [...prev, product]);
-    setNotice(`${product.name} added to cart`);
-    setTimeout(() => setNotice(""), 2200);
+    showNotice(`${product.name} added to cart`);
   };
 
   const toggleWish = (product) => {
@@ -56,7 +76,31 @@ function App() {
         ? prev.filter(p => p.name !== product.name)
         : [...prev, product]
     );
+    showNotice(wishlist.some(p => p.name === product.name) ? "Removed from wishlist" : "Added to wishlist");
   };
+
+  const scrollTo = (id) => {
+    setMenu(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const chooseCategory = (name) => {
+    const map = {
+      "Dog Food": "Dog",
+      "Cat Food": "Cat",
+      "Treats & Chews": "Treats",
+      "Toys": "Toys",
+      "Beds & Accessories": "Beds",
+      "Grooming": "All",
+      "Supplements": "All",
+      "Puppy & Kitten": "All"
+    };
+    setCategory(map[name] || "All");
+    setSearch("");
+    scrollTo("shop");
+  };
+
+  const cartTotal = cart.reduce((sum, p) => sum + p.price, 0);
 
   return (
     <div className="app">
@@ -69,29 +113,34 @@ function App() {
       </div>
 
       <header className="header">
-        <a className="logo" href="#">
+        <button className="logo logo-button" onClick={() => { setCategory("All"); setSearch(""); scrollTo("home"); }} aria-label="Pawly home">
           <span className="logo-mark"><PawPrint size={26} fill="currentColor"/></span>
           <span><b>Pawly</b><small>Good stuff for great pets</small></span>
-        </a>
+        </button>
 
         <nav className={menu ? "nav open" : "nav"}>
-          <a className="active" href="#">Home</a>
-          <a href="#shop">Shop <ChevronDown size={14}/></a>
-          <a href="#dog">Dog <ChevronDown size={14}/></a>
-          <a href="#cat">Cat <ChevronDown size={14}/></a>
-          <a href="#brands">Brands <ChevronDown size={14}/></a>
-          <a href="#about">About</a>
-          <a href="#help">Help</a>
+          <button className="nav-link active" onClick={() => scrollTo("home")}>Home</button>
+          <button className="nav-link" onClick={() => scrollTo("shop")}>Shop <ChevronDown size={14}/></button>
+          <button className="nav-link" onClick={() => { setCategory("Dog"); scrollTo("shop"); }}>Dog <ChevronDown size={14}/></button>
+          <button className="nav-link" onClick={() => { setCategory("Cat"); scrollTo("shop"); }}>Cat <ChevronDown size={14}/></button>
+          <button className="nav-link" onClick={() => scrollTo("brands")}>Brands <ChevronDown size={14}/></button>
+          <button className="nav-link" onClick={() => scrollTo("about")}>About</button>
+          <button className="nav-link" onClick={() => scrollTo("help")}>Help</button>
         </nav>
 
         <div className="header-actions">
           <label className="search">
             <Search size={18}/>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search for food, toys, and more..." />
+            <input
+              value={search}
+              onChange={e => { setSearch(e.target.value); if (e.target.value) setCategory("All"); }}
+              onKeyDown={e => { if (e.key === "Enter") scrollTo("shop"); }}
+              placeholder="Search for food, toys, and more..."
+            />
           </label>
-          <button className="icon-btn desktop-only" aria-label="Account"><UserRound/></button>
-          <button className="icon-btn desktop-only" aria-label="Wishlist"><Heart/></button>
-          <button className="icon-btn cart-btn" aria-label="Cart"><ShoppingCart/><b>{cart.length}</b></button>
+          <button className="icon-btn desktop-only" onClick={() => setPanel("account")} aria-label="Account"><UserRound/></button>
+          <button className="icon-btn desktop-only" onClick={() => setPanel("wishlist")} aria-label="Wishlist"><Heart/></button>
+          <button className="icon-btn cart-btn" onClick={() => setPanel("cart")} aria-label="Cart"><ShoppingCart/><b>{cart.length}</b></button>
           <button className="menu-btn" onClick={() => setMenu(!menu)} aria-label="Menu">
             {menu ? <X/> : <Menu/>}
           </button>
@@ -99,12 +148,12 @@ function App() {
       </header>
 
       <main>
-        <section className="hero">
+        <section className="hero" id="home">
           <div className="hero-copy">
             <p className="eyebrow">BETTER NUTRITION. A BRIGHTER TOMORROW.</p>
             <h1>Healthy Food.<br/><em>Happy Pets.</em></h1>
             <p>Premium pet food and products for a longer, happier life together.</p>
-            <a className="primary-btn" href="#shop">Shop Now <ArrowRight size={18}/></a>
+            <button className="primary-btn" onClick={() => scrollTo("shop")}>Shop Now <ArrowRight size={18}/></button>
           </div>
           <div className="hero-image">
             <img src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1400&q=90" alt="Happy dog and cat" />
@@ -115,14 +164,14 @@ function App() {
         <section className="section category-section">
           <div className="section-head">
             <div><h2>Shop by Category</h2></div>
-            <a href="#shop">View all categories <ArrowRight size={16}/></a>
+            <button className="text-btn" onClick={() => { setCategory("All"); scrollTo("shop"); }}>View all categories <ArrowRight size={16}/></button>
           </div>
           <div className="category-grid">
             {categories.map(([name, sub, image]) => (
-              <a className="category-card" href="#shop" key={name}>
+              <button className="category-card" onClick={() => chooseCategory(name)} key={name}>
                 <img src={image} alt={name}/>
                 <strong>{name}</strong><span>{sub}</span><small>→</small>
-              </a>
+              </button>
             ))}
           </div>
         </section>
@@ -136,11 +185,23 @@ function App() {
 
         <section className="section" id="shop">
           <div className="section-head">
-            <div><h2>{search ? "Search results" : "Featured Products"}</h2><p>Top picks for happy, healthy pets.</p></div>
-            <a href="#shop">View all products <ArrowRight size={16}/></a>
+            <div>
+              <h2>{search ? "Search results" : category === "All" ? "Featured Products" : `${category} Products`}</h2>
+              <p>Top picks for happy, healthy pets.</p>
+            </div>
+            <button className="text-btn" onClick={() => { setCategory("All"); setSearch(""); }}>View all products <ArrowRight size={16}/></button>
           </div>
+
+          <div className="filter-row">
+            {["All", "Dog", "Cat", "Treats", "Toys", "Beds"].map(item => (
+              <button key={item} className={category === item ? "filter-chip active" : "filter-chip"} onClick={() => setCategory(item)}>
+                {item}
+              </button>
+            ))}
+          </div>
+
           <div className="product-grid">
-            {filteredProducts.map(product => (
+            {filteredProducts.length ? filteredProducts.map(product => (
               <article className="product-card" key={product.name}>
                 <div className="product-image">
                   <img src={product.image} alt={product.name}/>
@@ -155,23 +216,34 @@ function App() {
                 <div className="price">A${product.price.toFixed(2)} {product.old && <del>A${product.old.toFixed(2)}</del>}</div>
                 <button className="add-btn" onClick={() => addToCart(product)}><ShoppingCart size={16}/> Add to cart</button>
               </article>
-            ))}
+            )) : (
+              <div className="empty-results">
+                <h3>No products found</h3>
+                <p>Try another search or choose “All”.</p>
+                <button className="primary-btn" onClick={() => { setSearch(""); setCategory("All"); }}>Show all products</button>
+              </div>
+            )}
           </div>
         </section>
 
         <section className="promo-grid section">
-          <div className="promo dog">
-            <div><h2>Better Nutrition<br/>Brighter Days</h2><p>High-quality pet food for every stage of life.</p><a href="#dog">Shop Dog Food <ArrowRight size={16}/></a></div>
+          <div className="promo dog" id="dog">
+            <div><h2>Better Nutrition<br/>Brighter Days</h2><p>High-quality pet food for every stage of life.</p><button className="promo-link" onClick={() => { setCategory("Dog"); scrollTo("shop"); }}>Shop Dog Food <ArrowRight size={16}/></button></div>
             <img src="https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=85" alt="Golden retriever"/>
           </div>
-          <div className="promo cat">
-            <div><h2>Happy Cats<br/>Healthy Homes</h2><p>Premium food, treats and essentials for your feline friend.</p><a href="#cat">Shop Cat Products <ArrowRight size={16}/></a></div>
+          <div className="promo cat" id="cat">
+            <div><h2>Happy Cats<br/>Healthy Homes</h2><p>Premium food, treats and essentials for your feline friend.</p><button className="promo-link" onClick={() => { setCategory("Cat"); scrollTo("shop"); }}>Shop Cat Products <ArrowRight size={16}/></button></div>
             <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=85" alt="Cat"/>
           </div>
         </section>
 
-        <section className="section reviews-section">
-          <div className="section-head"><div><h2>What Pet Parents Say</h2><p>Real pets. Real people. Real stories.</p></div><a href="#reviews">View more reviews <ArrowRight size={16}/></a></div>
+        <section className="section info-section" id="brands">
+          <div className="section-head"><div><h2>Brands</h2><p>Premium names pet parents know and trust.</p></div></div>
+          <div className="info-card"><b>Royal Canin · Taste of the Wild · Greenies · Chuckit! · Pawly Home</b><span>More brands can be added as your real catalogue grows.</span></div>
+        </section>
+
+        <section className="section reviews-section" id="reviews">
+          <div className="section-head"><div><h2>What Pet Parents Say</h2><p>Real pets. Real people. Real stories.</p></div><button className="text-btn" onClick={() => showNotice("Reviews page coming next")}>View more reviews <ArrowRight size={16}/></button></div>
           <div className="review-grid">
             {reviews.map(([name, text], i) => (
               <article className="review" key={name}>
@@ -182,10 +254,25 @@ function App() {
           </div>
         </section>
 
+        <section className="section info-section" id="about">
+          <div className="section-head"><div><h2>About Pawly</h2><p>Good stuff for great pets.</p></div></div>
+          <div className="info-card"><p>Pawly is designed as a modern Australian pet store for food, treats, toys and everyday essentials. This demo is ready to connect to real products, payments and orders.</p></div>
+        </section>
+
+        <section className="section info-section" id="help">
+          <div className="section-head"><div><h2>Help</h2><p>Need a hand?</p></div></div>
+          <div className="help-grid">
+            <button onClick={() => showNotice("Order tracking will be connected to your order system.")}>Track Your Order</button>
+            <button onClick={() => showNotice("Shipping information will be added here.")}>Shipping Information</button>
+            <button onClick={() => showNotice("Returns & refunds information will be added here.")}>Returns & Refunds</button>
+            <button onClick={() => showNotice("Contact: hello@pawly.com.au")}>Contact Us</button>
+          </div>
+        </section>
+
         <section className="newsletter">
           <div className="newsletter-icon"><PawPrint/></div>
           <div><h2>Join the Pawly family</h2><p>Get exclusive offers, pet care tips and the latest arrivals.</p></div>
-          <form onSubmit={e => { e.preventDefault(); setNotice("Thanks for joining the Pawly family!"); setTimeout(() => setNotice(""), 2200); }}>
+          <form onSubmit={e => { e.preventDefault(); showNotice("Thanks for joining the Pawly family!"); e.currentTarget.reset(); }}>
             <input type="email" required placeholder="Enter your email address"/>
             <button>Subscribe</button>
           </form>
@@ -196,16 +283,51 @@ function App() {
       <footer>
         <div className="footer-main">
           <div className="footer-brand">
-            <a className="logo footer-logo" href="#"><span className="logo-mark"><PawPrint size={24} fill="currentColor"/></span><span><b>Pawly</b><small>Good stuff for great pets</small></span></a>
-            <div className="socials"><span>◎</span><span>f</span><span>♪</span><span>▶</span></div>
+            <button className="logo footer-logo logo-button" onClick={() => scrollTo("home")}><span className="logo-mark"><PawPrint size={24} fill="currentColor"/></span><span><b>Pawly</b><small>Good stuff for great pets</small></span></button>
+            <div className="socials"><button onClick={() => showNotice("Instagram link will be connected.")}>◎</button><button onClick={() => showNotice("Facebook link will be connected.")}>f</button><button onClick={() => showNotice("TikTok link will be connected.")}>♪</button><button onClick={() => showNotice("YouTube link will be connected.")}>▶</button></div>
           </div>
-          <div><h4>Shop</h4><a href="#shop">Dog Food</a><a href="#shop">Cat Food</a><a href="#shop">Treats & Chews</a><a href="#shop">Toys</a><a href="#shop">Beds & Accessories</a><a href="#shop">Grooming</a></div>
-          <div><h4>Help</h4><a href="#help">Track Your Order</a><a href="#help">Shipping Information</a><a href="#help">Returns & Refunds</a><a href="#help">Site Guides</a><a href="#help">FAQs</a><a href="#help">Contact Us</a></div>
-          <div><h4>About</h4><a href="#about">Our Story</a><a href="#about">Our Promise</a><a href="#about">Sustainability</a><a href="#blog">Blog</a><a href="#about">Careers</a></div>
+          <div><h4>Shop</h4><button onClick={() => chooseCategory("Dog Food")}>Dog Food</button><button onClick={() => chooseCategory("Cat Food")}>Cat Food</button><button onClick={() => chooseCategory("Treats & Chews")}>Treats & Chews</button><button onClick={() => chooseCategory("Toys")}>Toys</button><button onClick={() => chooseCategory("Beds & Accessories")}>Beds & Accessories</button><button onClick={() => chooseCategory("Grooming")}>Grooming</button></div>
+          <div><h4>Help</h4><button onClick={() => scrollTo("help")}>Track Your Order</button><button onClick={() => scrollTo("help")}>Shipping Information</button><button onClick={() => scrollTo("help")}>Returns & Refunds</button><button onClick={() => scrollTo("help")}>FAQs</button><button onClick={() => scrollTo("help")}>Contact Us</button></div>
+          <div><h4>About</h4><button onClick={() => scrollTo("about")}>Our Story</button><button onClick={() => scrollTo("about")}>Our Promise</button><button onClick={() => scrollTo("about")}>Sustainability</button><button onClick={() => showNotice("Blog will be connected next.")}>Blog</button><button onClick={() => scrollTo("about")}>Careers</button></div>
           <div><h4>We're here to help</h4><a href="mailto:hello@pawly.com.au">hello@pawly.com.au</a><a href="tel:1800123456">1800 123 456</a><p>Melbourne, Australia</p><strong className="footer-paw">🐾 Pets make life better.</strong></div>
         </div>
-        <div className="footer-bottom"><span>© 2026 Pawly. All rights reserved.</span><span>Australia &nbsp; · &nbsp; Privacy Policy &nbsp; · &nbsp; Terms & Conditions</span></div>
+        <div className="footer-bottom"><span>© 2026 Pawly. All rights reserved.</span><button onClick={() => showNotice("Privacy Policy will be added here.")}>Privacy Policy</button><button onClick={() => showNotice("Terms & Conditions will be added here.")}>Terms & Conditions</button></div>
       </footer>
+
+      {panel && (
+        <div className="panel-backdrop" onClick={() => setPanel(null)}>
+          <aside className="side-panel" onClick={e => e.stopPropagation()}>
+            <div className="panel-head">
+              <h2>{panel === "cart" ? "Your Cart" : panel === "wishlist" ? "Wishlist" : "My Account"}</h2>
+              <button className="close-panel" onClick={() => setPanel(null)}><X/></button>
+            </div>
+
+            {panel === "cart" && (
+              cart.length ? <>
+                <div className="panel-list">
+                  {cart.map((p, i) => <div className="panel-item" key={`${p.name}-${i}`}>
+                    <img src={p.image} alt=""/>
+                    <div><b>{p.name}</b><span>A${p.price.toFixed(2)}</span></div>
+                  </div>)}
+                </div>
+                <div className="panel-total"><b>Total</b><strong>A${cartTotal.toFixed(2)}</strong></div>
+                <button className="primary-btn full-btn" onClick={() => { setPanel("account"); showNotice("Checkout is ready to connect to Stripe."); }}>Checkout</button>
+                <button className="secondary-btn" onClick={() => setCart([])}>Clear cart</button>
+              </> : <div className="panel-empty"><ShoppingCart size={42}/><h3>Your cart is empty</h3><p>Add a product to get started.</p><button className="primary-btn" onClick={() => { setPanel(null); scrollTo("shop"); }}>Shop products</button></div>
+            )}
+
+            {panel === "wishlist" && (
+              wishlist.length ? <div className="panel-list">
+                {wishlist.map(p => <div className="panel-item" key={p.name}><img src={p.image} alt=""/><div><b>{p.name}</b><span>A${p.price.toFixed(2)}</span><button onClick={() => addToCart(p)}>Add to cart</button></div></div>)}
+              </div> : <div className="panel-empty"><Heart size={42}/><h3>Your wishlist is empty</h3><p>Tap the heart on any product to save it.</p></div>
+            )}
+
+            {panel === "account" && (
+              <div className="panel-empty account-box"><UserRound size={42}/><h3>Welcome to Pawly</h3><p>Account sign-in and order history will connect here when the backend is added.</p><button className="primary-btn" onClick={() => showNotice("Account system coming next.")}>Continue</button></div>
+            )}
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
